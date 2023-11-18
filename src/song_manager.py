@@ -1,10 +1,14 @@
-from data.audio_processor import AudioProcessor
-from data.tab_processor import TabProcessor
+from src.data.audio_processor import AudioProcessor
+from src.data.tab_processor import TabProcessor
 import numpy as np
-import os
+import pandas as pd
+import gzip
+import os 
 
+# Processes song and gets all of the audio and tab windows
 class Song:
     def __init__(self, audio_file_path, tab_file_path, n_mels=512, skip=1, window_size=32):
+        self.file_path = os.path.splitext(os.path.basename(audio_file_path))[0]
         self.audio_processor = AudioProcessor(audio_file_path, n_mels=n_mels, window_size=window_size, skip=skip)
         self.tab_processor = TabProcessor(tab_file_path, self.audio_processor.audio_data, skip=skip,
                                           window_size=window_size)
@@ -34,14 +38,67 @@ class SongManager:
         song = Song(audio_file_path, tab_file_path, n_mels, skip, window_size=window_size)
         self.songs.append(song)
 
+    def save_processed_songs(self, output_directory):
+        os.makedirs(output_directory, exist_ok=True)  # Create the output directory if it doesn't exist
+
+        for song in self.songs:
+            audio_windows = np.transpose(song.audio_processor.windows, (0, 2, 1)).astype(np.float16)
+            tab_windows = np.transpose(song.tab_processor.windows, (0, 2, 1)).astype(np.float16)
+
+            song_name = song.file_path
+            audio_file_path = os.path.join(output_directory, f"{song_name}_audio.npz")
+            tab_file_path = os.path.join(output_directory, f"{song_name}_tab.npz")
+
+            # Save audio and tab windows as .npz files for each song
+            np.savez(audio_file_path, audio_windows=audio_windows)
+            np.savez(tab_file_path, tab_windows=tab_windows)
+
+            # Compress the .npz files using gzip
+            with open(audio_file_path, 'rb') as f_in:
+                with gzip.open(audio_file_path + '.gz', 'wb') as f_out:
+                    f_out.writelines(f_in)
+
+            with open(tab_file_path, 'rb') as f_in:
+                with gzip.open(tab_file_path + '.gz', 'wb') as f_out:
+                    f_out.writelines(f_in)
+
+            # Remove the original .npz files
+            os.remove(audio_file_path)
+            os.remove(tab_file_path)
+            
+    def join_session_data(self, input_directory, session_file_path):
+        audio_data = []
+        tab_data = []
+
+        # Find all .npz.gz files in the input directory
+        npz_files = [f for f in os.listdir(input_directory) if f.endswith('.npz.gz')]
+
+        for file_name in npz_files:
+            if file_name.endswith('_audio.npz.gz'):
+                with gzip.open(os.path.join(input_directory, file_name), 'rb') as f:
+                    audio_npz = np.load(f)
+                    audio_data.append(audio_npz['audio_windows'])
+
+            elif file_name.endswith('_tab.npz.gz'):
+                with gzip.open(os.path.join(input_directory, file_name), 'rb') as f:
+                    tab_npz = np.load(f)
+                    tab_data.append(tab_npz['tab_windows'])
+
+        # Concatenate all audio and tab data
+        combined_audio = np.concatenate(audio_data, axis=0)
+        combined_tab = np.concatenate(tab_data, axis=0)
+
+        # Save the combined data into a single .npz file (Session_n.npz)
+        np.savez(session_file_path, audio_windows=combined_audio, tab_windows=combined_tab)
+
     def get_all_windows(self, window_size):
-        # Initialize with the first song's windows
-        audio_windows = np.transpose(self.songs[0].audio_processor.windows, (0, 2, 1))
-        tab_windows = np.transpose(self.songs[0].tab_processor.windows, (0, 2, 1))
+         # Initialize with the first song's windows
+         audio_windows = np.transpose(self.songs[0].audio_processor.windows, (0, 2, 1))
+         tab_windows = np.transpose(self.songs[0].tab_processor.windows, (0, 2, 1))
 
         # Continue concatenating from the second song onwards
-        for song in self.songs[1:]:
+         for song in self.songs[1:]:
             audio_windows = np.concatenate((audio_windows, np.transpose(song.audio_processor.windows, (0, 2, 1))), axis=0)
             tab_windows = np.concatenate((tab_windows, np.transpose(song.tab_processor.windows, (0, 2, 1))), axis=0)
 
-        return [audio_windows, tab_windows]
+         return [audio_windows, tab_windows]
