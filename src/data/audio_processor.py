@@ -1,6 +1,8 @@
 import os
 import librosa
 import numpy as np
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+
 
 
 class AudioProcessor:
@@ -48,6 +50,7 @@ class AudioProcessor:
         for file in os.listdir(mp3_directory):
             if file.endswith('.mp3'):
                 audio_data, time_mp3 = self.process_audio_file(os.path.join(mp3_directory, file))
+                # Normalize data
                 X.append(audio_data)
         return audio_data, time_mp3, X
 
@@ -56,6 +59,14 @@ class AudioProcessor:
         y, sr = librosa.load(file_path)
         S = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=512)
         log_S = librosa.power_to_db(S, ref=np.max)
+        #scaled_log_S = scaler.fit_transform(log_S)
+
+        # Fit and transform the audio data
+        scaler = StandardScaler()  # Create a scaler object
+        scaler = MinMaxScaler(feature_range=(-1, 1))  # Initialize the MinMaxScaler with desired range
+        
+        scaled_log_S = scaler.fit_transform(log_S.reshape(-1, 1))
+        scaled_log_S = scaled_log_S.reshape(log_S.shape)
         # (remaining plotting code is omitted for brevity)
-        return log_S
+        return scaled_log_S
 
