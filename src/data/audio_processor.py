@@ -6,12 +6,11 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 
 class AudioProcessor:
-    def __init__(self, file_path, n_mels=512, window_size=32, skip=1):
+    def __init__(self, file_path, n_mels, window_size, skip, hop_length, sr):
         self.n_mels = n_mels
-        self.audio_data = self.process_audio_file(file_path)
+        self.audio_data = self.process_audio_file(file_path,n_mels, hop_length, window_size,sr=sr)
         frames = range(self.audio_data.shape[1])
-        hop_length_used = 512  # or whatever value you used
-        time = librosa.frames_to_time(frames, sr=22050, hop_length=hop_length_used)
+        time = librosa.frames_to_time(frames, sr=sr, hop_length=hop_length, n_fft=window_size)
         self.time_ms = time * 1000
         self.windows = self.sliding_window(self.audio_data, window_size, skip)
 
@@ -21,7 +20,7 @@ class AudioProcessor:
         y, original_sr = librosa.load(file_path, sr=None)
 
         # Resample the audio to the target sample rate
-        y_resampled = librosa.resample(y, original_sr, target_sr)
+        y_resampled = librosa.resample(y, orig_sr=original_sr, target_sr=target_sr)
 
         return y_resampled
 
@@ -44,20 +43,23 @@ class AudioProcessor:
     #        Xs.append(v)  # Predict the next frame after the window
     #    Xs = np.squeeze(Xs, 1)
     #    return np.array(Xs), np.array(Ys)
-
-    def load_audios(self, mp3_directory):
-        X = []
-        for file in os.listdir(mp3_directory):
-            if file.endswith('.mp3'):
-                audio_data, time_mp3 = self.process_audio_file(os.path.join(mp3_directory, file))
-                # Normalize data
-                X.append(audio_data)
-        return audio_data, time_mp3, X
-
-    def process_audio_file(self, file_path):
+    
+    ########## UNUSED
+    #def load_audios(self, mp3_directory, n_mels, hop_length, sr):
+    #    X = []
+    #    for file in os.listdir(mp3_directory):
+    #        if file.endswith('.mp3'):
+    #            audio_data, time_mp3 = self.process_audio_file(os.path.join(mp3_directory, file), n_mels=n_mels, hop_length=hop_length, sr=sr)
+    #            # Normalize data
+    #            X.append(audio_data)
+    #    return audio_data, time_mp3, X
+    ##########
+    
+    def process_audio_file(self, file_path,n_mels, hop_length, window_size, sr):
         # (same content as the original function)
-        y, sr = librosa.load(file_path)
-        S = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=512)
+        #y, sr = librosa.load(file_path)
+        y = AudioProcessor.resample_audio(file_path, target_sr=sr)
+        S = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, hop_length=hop_length, n_fft=window_size)
         log_S = librosa.power_to_db(S, ref=np.max)
         #scaled_log_S = scaler.fit_transform(log_S)
 

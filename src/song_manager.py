@@ -8,9 +8,9 @@ import tensorflow as tf
 
 # Processes song and gets all of the audio and tab windows
 class Song:
-    def __init__(self, audio_file_path, tab_file_path, n_mels=512, skip=1, window_size=32):
+    def __init__(self, audio_file_path, tab_file_path, n_mels, skip, window_size, hop_length, sr):
         self.file_path = os.path.splitext(os.path.basename(audio_file_path))[0]
-        self.audio_processor = AudioProcessor(audio_file_path, n_mels=n_mels, window_size=window_size, skip=skip)
+        self.audio_processor = AudioProcessor(audio_file_path, n_mels=n_mels, window_size=window_size, skip=skip, hop_length=hop_length, sr=sr)
         self.tab_processor = TabProcessor(tab_file_path, self.audio_processor.audio_data, skip=skip,
                                           window_size=window_size)
 
@@ -23,7 +23,7 @@ class SongManager:
     def __init__(self):
         self.songs = []
 
-    def load_dataset(self, mp3_directory, gp5_directory, n_mels=512, skip=1, window_size=32):        
+    def load_dataset(self, mp3_directory, gp5_directory, n_mels, skip, window_size, hop_length, sr):        
         # List all files in each directory and strip the extensions
         mp3_files = set([os.path.splitext(f)[0] for f in os.listdir(mp3_directory) if f.endswith('.mp3')])
         gp5_files = set([os.path.splitext(f)[0] for f in os.listdir(gp5_directory) if f.endswith('.gp5')])
@@ -33,10 +33,10 @@ class SongManager:
         for filename_without_ext in common_files:
             mp3_path = os.path.join(mp3_directory, filename_without_ext + '.mp3')
             gp5_path = os.path.join(gp5_directory, filename_without_ext + '.gp5')
-            self.add_song(mp3_path, gp5_path, n_mels, skip, window_size)
+            self.add_song(mp3_path, gp5_path, n_mels, skip, window_size, hop_length, sr=sr)
 
-    def add_song(self, audio_file_path, tab_file_path, n_mels, skip, window_size):
-        song = Song(audio_file_path, tab_file_path, n_mels, skip, window_size=window_size)
+    def add_song(self, audio_file_path, tab_file_path, n_mels, skip, window_size, hop_length, sr):
+        song = Song(audio_file_path, tab_file_path, n_mels, skip, window_size=window_size, hop_length=hop_length, sr=sr)
         self.songs.append(song)
 
     def save_processed_songs(self, output_directory):
