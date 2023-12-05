@@ -59,7 +59,7 @@ class AudioProcessor:
         # (same content as the original function)
         #y, sr = librosa.load(file_path)
         y = AudioProcessor.resample_audio(file_path, target_sr=sr)
-        S = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, hop_length=hop_length, n_fft=window_size)
+        S = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, hop_length=hop_length, win_length=8*n_mels, n_fft=8*n_mels, fmax=11025)
         log_S = librosa.power_to_db(S, ref=np.max)
         #scaled_log_S = scaler.fit_transform(log_S)
 
